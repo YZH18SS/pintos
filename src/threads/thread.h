@@ -13,7 +13,9 @@ enum thread_status
     THREAD_BLOCKED,     /* Waiting for an event to trigger. */
     THREAD_DYING        /* About to be destroyed. */
   };
-
+typedef int elem_type;
+#define ELEM 1
+#define LOCK_WAITER_ELEM 2
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -88,10 +90,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int base_priority;			/* True priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+    struct list_elem elem;              /* List element for ready list. */
+    struct list_elem lock_waiter_elem;  /* List element for lock's waiters list.*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -100,6 +104,9 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    int64_t block_ticks;		/*Ticks thread blocked*/
+    struct lock *waiting;		/* Lock thread is waiting. */
+    struct list lock_holding;		/* Locks thread is holding. */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -129,6 +136,7 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+void thread_change_block_ticks(struct thread *t,void *aux UNUSED);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
@@ -138,4 +146,10 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+bool thread_cmp_priority(const struct list_elem *a,const struct list_elem *b,void *aux);
+
+void thread_donate_priority(struct thread *t);
+void thread_update_priority(struct thread *t);
+void thread_update_lock_priority(struct lock *lock);
+void thread_hold_lock(struct lock *lock);
 #endif /* threads/thread.h */
