@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -101,6 +102,8 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
+    fixed_t recent_cpu;
+    int nice;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -137,6 +140,8 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 void thread_change_block_ticks(struct thread *t,void *aux UNUSED);
+void thread_mlfqs_recalculate_recent_cpu(struct thread *t,void *aux UNUSED);
+void thread_mlfqs_recalculate_priority(struct thread *t,void *aux UNUSED);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
@@ -152,4 +157,6 @@ void thread_donate_priority(struct thread *t);
 void thread_update_priority(struct thread *t);
 void thread_update_lock_priority(struct lock *lock);
 void thread_hold_lock(struct lock *lock);
+void thread_mlfqs_recent_cpu_plus_one(void);
+void thread_mlfqs_update_load_avg_and_recent_cpu(void);
 #endif /* threads/thread.h */

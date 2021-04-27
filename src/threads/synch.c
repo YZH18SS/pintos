@@ -207,9 +207,11 @@ lock_acquire (struct lock *lock)
   if(!sema_try_down (&lock->semaphore)){
 	        enum intr_level old_level = intr_disable();
 	  	cur->waiting = lock;
-		elem_type type = LOCK_WAITER_ELEM;
-		list_insert_ordered(&lock->waiters,&cur->lock_waiter_elem,&thread_cmp_priority,&type);
-		thread_donate_priority(cur);
+		if(!thread_mlfqs){
+			elem_type type = LOCK_WAITER_ELEM;
+			list_insert_ordered(&lock->waiters,&cur->lock_waiter_elem,&thread_cmp_priority,&type);
+			thread_donate_priority(cur);
+		}
 		intr_set_level(old_level);
 		sema_down(&lock->semaphore);
   }
@@ -251,14 +253,16 @@ lock_release (struct lock *lock)
   enum intr_level old_level = intr_disable();
   lock->holder = NULL;
   elem_type type = LOCK_WAITER_ELEM;
-  if(!list_empty(&lock->waiters)){
+  if(!thread_mlfqs && !list_empty(&lock->waiters)){
   	list_sort(&lock->waiters,&thread_cmp_priority,&type);
         list_pop_front(&lock->waiters);
 	}
   list_remove(&lock->elem);
-  thread_update_lock_priority(lock);
+  if(!thread_mlfqs)
+	  thread_update_lock_priority(lock);
   intr_set_level(old_level);
-  thread_update_priority(thread_current());
+  if(!thread_mlfqs)
+  	thread_update_priority(thread_current());
   sema_up (&lock->semaphore);
 }
 
